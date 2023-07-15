@@ -985,5 +985,14 @@ namespace ExcelNumberFormat.Tests
             Test(1234.56, "[$€-1809]# ##0.00", "€1 234.56");
             Test(1234.56, "#,##0.00 [$EUR]", "1,234.56 EUR");
         }
+
+        [TestMethod]
+        public void TestEra()
+        {
+            // Japan
+            Test(44200, @"[$-411]ge\.m\.d;@", "R3.1.4");
+            // Taiwan
+            Test(44200, @"[$-404]ge\.m\.d;@", "民國110.1.4");
+        }
     }
 }

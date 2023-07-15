@@ -74,6 +74,8 @@ namespace ExcelNumberFormat
                         color = parseColor;
                     else if (TryParseCurrencySymbol(expression, out var parseCurrencySymbol))
                         tokens.Add("\"" + parseCurrencySymbol + "\"");
+                    else if (TryParseCultureSymbol(expression, out var parseCultureSymbol))
+                        tokens.Add("\"" + parseCultureSymbol + "\"");
                 }
                 else
                 {
@@ -263,7 +265,9 @@ namespace ExcelNumberFormat
                 reader.ReadOneOrMore('s') ||
                 reader.ReadOneOrMore('S') ||
                 reader.ReadOneOrMore('g') ||
-                reader.ReadOneOrMore('G'))
+                reader.ReadOneOrMore('G') ||
+                reader.ReadOneOrMore('e')
+                )
             {
                 syntaxError = false;
                 var length = reader.Position - offset;
@@ -386,13 +390,38 @@ namespace ExcelNumberFormat
                 return false;
             }
 
-
             if (token.Contains("-"))
                 currencySymbol = token.Substring(1, token.IndexOf('-') - 1);
             else
                 currencySymbol = token.Substring(1);
 
-            return true;
+            if (string.IsNullOrEmpty(currencySymbol))
+                return false;
+            else
+                return true;
+        }
+
+        private static bool TryParseCultureSymbol(string token, out string cultureSymbol)
+        {
+            if (string.IsNullOrEmpty(token)
+                || !token.StartsWith("$"))
+            {
+                cultureSymbol = null;
+                return false;
+            }
+
+            int dashIndex = token.IndexOf('-');
+            if (dashIndex == 1)
+            {
+                // "-411" -> "411" (hex)
+                cultureSymbol = token.Substring(dashIndex + 1);
+            }
+            else
+            {
+                cultureSymbol = string.Empty;
+            }
+
+            return !string.IsNullOrEmpty(cultureSymbol);
         }
     }
 }

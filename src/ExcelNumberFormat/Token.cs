@@ -69,6 +69,7 @@ namespace ExcelNumberFormat
                 token.StartsWith("d", StringComparison.OrdinalIgnoreCase) ||
                 token.StartsWith("s", StringComparison.OrdinalIgnoreCase) ||
                 token.StartsWith("h", StringComparison.OrdinalIgnoreCase) ||
+                //token.StartsWith("e", StringComparison.OrdinalIgnoreCase) ||
                 (token.StartsWith("g", StringComparison.OrdinalIgnoreCase) && !IsGeneral(token)) ||
                 string.Compare(token, "am/pm", StringComparison.OrdinalIgnoreCase) == 0 ||
                 string.Compare(token, "a/p", StringComparison.OrdinalIgnoreCase) == 0 ||
