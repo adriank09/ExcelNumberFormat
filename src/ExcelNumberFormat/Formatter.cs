@@ -241,9 +241,120 @@ namespace ExcelNumberFormat
                 }
                 else if (token.StartsWith("g", StringComparison.OrdinalIgnoreCase))
                 {
+                    // If culture contains calendar that contains era, use that
+                    if (tokens.Contains("e"))
+                    {
+                        if (culture == CultureInfo.InvariantCulture)
+                        {
+                            try
+                            {
+                                int tokenIndex = tokens.IndexOf(token);
+                                string localeId = tokens[tokenIndex - 1];
+                                if (!string.IsNullOrEmpty(localeId))
+                                {
+                                    localeId = localeId.Trim('\"');
+                                }
+                                if (int.TryParse(localeId, NumberStyles.HexNumber, culture, out int lcid))
+                                {
+                                    // .NET Standard 1.0 does not support creating CultureInfo from a LCID,
+                                    // so we find one from a custom dictionary. Here we support only:
+                                    //  Japanese, Chinese Traditional (Taiwan)
+                                    Dictionary<int, string> dictCultureInfo = new Dictionary<int, string>()
+                                    {
+                                        { 1041, "ja-JP" },
+                                        { 1028, "zh-TW" }
+                                    };
+                                    if (dictCultureInfo.TryGetValue(lcid, out string locale))
+                                    {
+                                        culture = new CultureInfo(locale);
+                                        if (culture.Name.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            Calendar japaneseCalendar = null;
+                                            foreach (var calendar in culture.OptionalCalendars)
+                                            {
+                                                if (calendar.GetType() == CultureInfo.InvariantCulture.Calendar.GetType())
+                                                {
+                                                    continue;
+                                                }
+                                                japaneseCalendar = calendar;
+                                                break;
+                                            }
+                                            if (japaneseCalendar != null)
+                                            {
+                                                culture.DateTimeFormat.Calendar = japaneseCalendar;
+                                            }
+                                            //era = culture.DateTimeFormat.Calendar.GetEra(date.AdjustedDateTime);
+                                            //eraName = GetJapaneseEraEnglishAbbreviation(culture, era);
+                                        }
+                                        else if (string.Equals(culture.Name, "zh-TW", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            Calendar taiwanCalendar = null;
+                                            foreach (var calendar in culture.OptionalCalendars)
+                                            {
+                                                if (calendar.GetType() == CultureInfo.InvariantCulture.Calendar.GetType())
+                                                {
+                                                    continue;
+                                                }
+                                                taiwanCalendar = calendar;
+                                                break;
+                                            }
+                                            if (taiwanCalendar != null)
+                                            {
+                                                culture.DateTimeFormat.Calendar = taiwanCalendar;
+                                            }
+                                            //eraName = culture.DateTimeFormat.GetAbbreviatedEraName(era);
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception)
+                            {
+
+                            }
+                        }
+                        else
+                        {
+                            // Get calendars that are not Gregorian
+                            var nonGregorianCalendars = new List<Calendar>();
+                            foreach (var calendar in culture.OptionalCalendars)
+                            {
+                                if (calendar.GetType() == CultureInfo.InvariantCulture.Calendar.GetType())
+                                {
+                                    continue;
+                                }
+                                nonGregorianCalendars.Add(calendar);
+                            }
+
+                            // If there are more than one, get the first non-Gregorian calendar
+                            Calendar nonGregorianCalendar = null;
+                            if (nonGregorianCalendars.Count > 0)
+                            {
+                                nonGregorianCalendar = nonGregorianCalendars[0];
+                            }
+
+                            // Reset the culture's calendar
+                            culture.DateTimeFormat.Calendar = nonGregorianCalendar;
+                        }
+                    }
+
                     var era = culture.DateTimeFormat.Calendar.GetEra(date.AdjustedDateTime);
                     var digits = token.Length;
-                    if (digits < 3)
+                    if (digits == 1)
+                    {
+                        string eraName;
+
+                        if (culture.Name.StartsWith("ja"))
+                        {
+                            eraName = GetJapaneseEraEnglishAbbreviation(culture, era);
+                        }
+                        else
+                        {
+                            eraName = culture.DateTimeFormat.GetAbbreviatedEraName(era);
+                        }
+
+                        result.Append(eraName);
+                    }
+                    else if (digits < 3)
                     {
                         result.Append(culture.DateTimeFormat.GetAbbreviatedEraName(era));
                     }
@@ -251,6 +362,11 @@ namespace ExcelNumberFormat
                     {
                         result.Append(culture.DateTimeFormat.GetEraName(era));
                     }
+                }
+                else if (token.StartsWith("e", StringComparison.OrdinalIgnoreCase))
+                {
+                    int year = culture.DateTimeFormat.Calendar.GetYear(date.AdjustedDateTime);
+                    result.Append(year);
                 }
                 else if (string.Compare(token, "am/pm", StringComparison.OrdinalIgnoreCase) == 0)
                 {
@@ -294,11 +410,41 @@ namespace ExcelNumberFormat
                 }
                 else
                 {
-                    FormatLiteral(token, result);
+                    bool isNextTokenG = false;
+                    try
+                    {
+                        int tokenIndex = tokens.IndexOf(token);
+                        string gToken = tokens[tokenIndex + 1];
+                        if (gToken.Equals("g", StringComparison.OrdinalIgnoreCase))
+                        {
+                            isNextTokenG = true;
+                        }
+                    }
+                    catch (Exception)
+                    {
+
+                    }
+                    if (!isNextTokenG)
+                    {
+                        FormatLiteral(token, result);
+                    }
                 }
             }
 
             return result.ToString();
+        }
+
+        private static string GetJapaneseEraEnglishAbbreviation(CultureInfo culture, int era)
+        {
+            for (char c = 'A'; c <= 'Z'; c++)
+            {
+                int thisEra = culture.DateTimeFormat.GetEra(c.ToString());
+                if (thisEra > 0 && thisEra == era)
+                {
+                    return c.ToString();
+                }
+            }
+            return string.Empty;
         }
 
         private static bool LookAheadDatePart(List<string> tokens, int fromIndex, string startsWith)
