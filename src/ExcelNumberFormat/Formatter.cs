@@ -334,7 +334,14 @@ namespace ExcelNumberFormat
                             }
 
                             // Reset the culture's calendar
-                            culture.DateTimeFormat.Calendar = nonGregorianCalendar;
+                            try
+                            {
+                                culture.DateTimeFormat.Calendar = nonGregorianCalendar;
+                            }
+                            catch (InvalidOperationException)
+                            {
+                                // Failed to reset the culture's calendar
+                            }
                         }
                     }
 
