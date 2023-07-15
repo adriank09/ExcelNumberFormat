@@ -416,6 +416,7 @@ namespace ExcelNumberFormat
                     string gToken = string.Empty;
                     try
                     {
+                        
                         gToken = tokens[tokenIndex + 1];
                     }
                     catch (Exception)
@@ -429,7 +430,19 @@ namespace ExcelNumberFormat
                     }
                     if (!isNextTokenG)
                     {
-                        FormatLiteral(token, result);
+                        if (token.Contains("\""))
+                        {
+                            token = token.Replace("\"", string.Empty);
+                        }
+                        if (int.TryParse(token, out _))
+                        {
+                            // Skip output of locale ID
+                            // TODO: what if the token is an integer but it's not a locale ID?
+                        }
+                        else
+                        {
+                            FormatLiteral(token, result);
+                        }
                     }
                 }
             }
